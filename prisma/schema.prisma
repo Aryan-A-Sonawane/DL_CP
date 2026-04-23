@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Employee {
+  id              Int      @id @default(autoincrement())
+  empCode         String   @unique
+  name            String
+  email           String?
+  primaryDomain   String
+  department      String?
+  yearsExperience Float    @default(0)
+  softSkillScore  Float    @default(5.0)
+  createdAt       DateTime @default(now())
+
+  failureEvents    FailureEvent[]
+  strengths        Strength[]
+  roleSuggestions  RoleSuggestion[]
+
+  @@map("employees")
+}
+
+model FailureEvent {
+  id                Int      @id @default(autoincrement())
+  employeeId        Int
+  category          String
+  description       String?
+  severity          Float    @default(5.0)
+  date              DateTime @default(now())
+  recoveryTimeDays  Int      @default(30)
+  outcomeAfter      String   @default("neutral")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("failure_events")
+}
+
+model Strength {
+  id         Int    @id @default(autoincrement())
+  employeeId Int
+  name       String
+  score      Float  @default(5.0)
+  source     String @default("assessment")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("strengths")
+}
+
+model RoleSuggestion {
+  id                Int      @id @default(autoincrement())
+  employeeId        Int
+  suggestedRole     String
+  matchScore        Float
+  failureScore      Float    @default(0)
+  resilienceIndex   Float    @default(0)
+  leadershipScore   Float    @default(0)
+  growthTrajectory  String   @default("stable")
+  explanation       String?
+  createdAt         DateTime @default(now())
+
+  employee Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  audits   EthicalAudit[]
+
+  @@map("role_suggestions")
+}
+
+model EthicalAudit {
+  id           Int      @id @default(autoincrement())
+  suggestionId Int
+  framework    String
+  dimension    String
+  score        Float
+  riskLevel    String
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  suggestion RoleSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+
+  @@map("ethical_audits")
+}
