@@ -75,7 +75,7 @@ See [`.env.example`](./.env.example) for the full list. Required in production:
 |---|---|---|
 | `DATABASE_URL` | ✅ | Postgres connection string (use the **pooled** URL from Neon/Vercel PG) |
 | `SESSION_SECRET` | ✅ | 32+ char random string for HMAC-signed session cookies |
-| `APP_URL` | ✅ in prod | Used in invitation email links (e.g. `https://your-app.vercel.app`) |
+| `APP_URL` | optional | Override the invitation-link host. Defaults to Vercel's auto-detected production URL (e.g. `https://ftrm.vercel.app`) or per-deployment preview URL — only set this for a custom domain. |
 | `SUPER_ADMIN_EMAIL` / `_PASSWORD` / `_NAME` | optional | Override the seeded super-admin |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` | optional | Defaults to Gmail (`smtp.gmail.com`, `465`, `true`) |
 | `SMTP_USER` / `SMTP_PASS` | optional* | If unset, invitation emails are skipped (codes still work in `/join`) |
@@ -109,7 +109,7 @@ That's it. Invitations created from the Admin or Department-Head UI now arrive i
    |---|---|
    | `DATABASE_URL` | your pooled Postgres URL |
    | `SESSION_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"` |
-   | `APP_URL` | `https://<your-project>.vercel.app` |
+   | `APP_URL` | *(optional — auto-detected from Vercel. Override only for a custom domain.)* |
    | `SUPER_ADMIN_EMAIL` | (optional override) |
    | `SUPER_ADMIN_PASSWORD` | (optional override) |
    | `SMTP_USER` | your Gmail address |

@@ -10,7 +10,14 @@ import nodemailer, { type Transporter } from "nodemailer";
  *   SMTP_USER       (your Gmail address)
  *   SMTP_PASS       (Gmail "App password" — generate at https://myaccount.google.com/apppasswords)
  *   SMTP_FROM       (display address, defaults to SMTP_USER)
- *   APP_URL         (used to build the /join link, defaults to http://localhost:3000)
+ *   APP_URL         (overrides the auto-detected /join link host —
+ *                    e.g. https://ftrm.vercel.app)
+ *
+ * URL detection: if APP_URL isn't set, we use Vercel's auto-injected
+ * VERCEL_PROJECT_PRODUCTION_URL (production) or VERCEL_URL (previews),
+ * falling back to http://localhost:3000 for local dev. So invitation
+ * links always point at the deployment that sent them, with no manual
+ * config required on Vercel.
  *
  * If SMTP_USER or SMTP_PASS is missing, the email helpers no-op and log a
  * warning so the API surface keeps working in environments without mail
@@ -50,8 +57,26 @@ function fromAddress(): string {
   );
 }
 
+/**
+ * Resolve the public app URL used in invitation links.
+ *
+ * Priority (highest first):
+ *   1. APP_URL                                   — explicit override
+ *   2. VERCEL_PROJECT_PRODUCTION_URL (in prod)   — e.g. ftrm.vercel.app
+ *   3. VERCEL_URL                                — per-deployment preview URL
+ *   4. http://localhost:3000                     — local dev fallback
+ */
 function appUrl(): string {
-  return (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
+
+  const prodHost =
+    process.env.VERCEL_ENV === "production"
+      ? process.env.VERCEL_PROJECT_PRODUCTION_URL
+      : null;
+  const host = prodHost || process.env.VERCEL_URL;
+  if (host) return `https://${host.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+
+  return "http://localhost:3000";
 }
 
 interface InviteParams {
