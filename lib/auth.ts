@@ -18,6 +18,13 @@ export interface SessionPayload {
 function getSecret(): string {
   const s = process.env.SESSION_SECRET;
   if (s && s.length >= 16) return s;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "SESSION_SECRET is missing or shorter than 16 chars. " +
+      "Set a 32+ char random value in your environment before serving traffic. " +
+      "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('base64url'))\""
+    );
+  }
   // dev-only deterministic fallback so HMR doesn't invalidate sessions
   return "dev-only-frm-secret-change-me-please-32b";
 }
