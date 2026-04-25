@@ -56,12 +56,14 @@ npm run dev
 
 `npm run dev` runs `prisma db push` (creates the schema), seeds the **Super-Admin** account (only one — no mock orgs/employees), then starts Next.js (Turbopack) on http://localhost:3000.
 
-Default super-admin credentials (override via env vars):
+Default super-admin credentials:
 
 ```
-email:    owner@platform.local
-password: Owner@12345
+email:    owner@platform.local           (override with SUPER_ADMIN_EMAIL)
+password: <printed once on first boot>   (override with SUPER_ADMIN_PASSWORD)
 ```
+
+If `SUPER_ADMIN_PASSWORD` is not set, the seed script generates a strong random password and prints it once to the console / deploy logs. Copy it from there immediately — it isn't stored anywhere else in plaintext.
 
 ---
 
@@ -110,9 +112,9 @@ That's it. Invitations created from the Admin or Department-Head UI now arrive i
    | `APP_URL` | `https://<your-project>.vercel.app` |
    | `SUPER_ADMIN_EMAIL` | (optional override) |
    | `SUPER_ADMIN_PASSWORD` | (optional override) |
-   | `SMTP_USER` | `s.aryan0505@gmail.com` |
+   | `SMTP_USER` | your Gmail address |
    | `SMTP_PASS` | your 16-char Gmail App Password |
-   | `SMTP_FROM` | `Failure-to-Role <s.aryan0505@gmail.com>` |
+   | `SMTP_FROM` | display "From" — e.g. `"Failure-to-Role <your.email@gmail.com>"` |
 5. **Deploy.** The build runs `prisma db push` against the production DB and seeds the super-admin on first deploy.
 
 > ⚠️ **Do not use SQLite on Vercel.** Vercel's serverless filesystem is read-only outside `/tmp`. Postgres (or any hosted DB) is required.

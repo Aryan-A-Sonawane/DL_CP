@@ -7,7 +7,7 @@ import nodemailer, { type Transporter } from "nodemailer";
  *   SMTP_HOST       (default: smtp.gmail.com)
  *   SMTP_PORT       (default: 465)
  *   SMTP_SECURE     (default: "true" — set "false" for STARTTLS / port 587)
- *   SMTP_USER       (e.g. s.aryan0505@gmail.com)
+ *   SMTP_USER       (your Gmail address)
  *   SMTP_PASS       (Gmail "App password" — generate at https://myaccount.google.com/apppasswords)
  *   SMTP_FROM       (display address, defaults to SMTP_USER)
  *   APP_URL         (used to build the /join link, defaults to http://localhost:3000)
