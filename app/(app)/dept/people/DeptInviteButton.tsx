@@ -12,6 +12,7 @@ export default function DeptInviteButton({ departmentId }: { departmentId: numbe
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [emailStatus, setEmailStatus] = useState<"sent" | "skipped" | "failed" | null>(null);
+  const [reuseSummary, setReuseSummary] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -26,8 +27,12 @@ export default function DeptInviteButton({ departmentId }: { departmentId: numbe
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invite failed");
-      setCode(data.code);
-      setEmailStatus(data.emailStatus ?? "skipped");
+      if (data.reused) {
+        setReuseSummary(data.summary || "Existing user updated.");
+      } else {
+        setCode(data.code);
+        setEmailStatus(data.emailStatus ?? "skipped");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invite failed");
     } finally {
@@ -40,6 +45,7 @@ export default function DeptInviteButton({ departmentId }: { departmentId: numbe
     setEmail("");
     setCode(null);
     setEmailStatus(null);
+    setReuseSummary(null);
     setError(null);
     router.refresh();
   }
@@ -55,7 +61,18 @@ export default function DeptInviteButton({ departmentId }: { departmentId: numbe
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-900/40 backdrop-blur-sm p-4">
           <div className="card max-w-md w-full p-7 animate-slide-up">
             <h3 className="text-lg font-bold text-surface-900">Invite an employee</h3>
-            {code ? (
+            {reuseSummary ? (
+              <div className="mt-5 space-y-4">
+                <div className="form-success">
+                  {reuseSummary}. They&apos;ll see the change next time they
+                  refresh — no email or code needed since they already have an
+                  account.
+                </div>
+                <button onClick={close} className="btn-primary btn-primary-block">
+                  Done
+                </button>
+              </div>
+            ) : code ? (
               <div className="mt-5 space-y-4">
                 <div className="form-success">
                   {emailStatus === "sent"
