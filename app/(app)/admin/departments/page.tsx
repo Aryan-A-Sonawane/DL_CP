@@ -3,6 +3,7 @@ import { Building2 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import DepartmentsClient from "./DepartmentsClient";
+import TestDataCard from "./TestDataCard";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,8 @@ export default async function DepartmentsPage() {
         memberCount: d._count.members,
         projectCount: d._count.projects,
       }))} />
+
+      <TestDataCard />
     </div>
   );
 }
