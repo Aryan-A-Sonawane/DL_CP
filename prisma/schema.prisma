@@ -3,58 +3,217 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-model Employee {
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenancy
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Organization {
+  id            Int          @id @default(autoincrement())
+  name          String
+  slug          String       @unique
+  industry      String?
+  size          String?
+  contactEmail  String?
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+
+  users         User[]
+  departments   Department[]
+  invitations   Invitation[]
+
+  @@map("organizations")
+}
+
+model Department {
   id              Int      @id @default(autoincrement())
-  empCode         String   @unique
+  orgId           Int
   name            String
-  email           String?
-  primaryDomain   String
-  department      String?
-  yearsExperience Float    @default(0)
-  softSkillScore  Float    @default(5.0)
+  description     String?
+  cycleType       String   @default("monthly") // monthly | bimonthly | quarterly | yearly
+  cycleLengthDays Int      @default(30)
+  cycleAnchor     DateTime @default(now())     // anchor date used to compute cycle windows
+  headId          Int?     @unique
   createdAt       DateTime @default(now())
 
-  failureEvents    FailureEvent[]
-  strengths        Strength[]
-  roleSuggestions  RoleSuggestion[]
+  organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  head            User?        @relation("DepartmentHead", fields: [headId], references: [id])
+  members         User[]       @relation("DepartmentMembers")
+  projects        Project[]
+  uploads         ExcelUpload[]
+  reminders       ReminderLog[]
 
-  @@map("employees")
+  @@unique([orgId, name])
+  @@map("departments")
 }
+
+model Project {
+  id           Int       @id @default(autoincrement())
+  departmentId Int
+  name         String
+  description  String?
+  status       String    @default("active") // active | paused | done
+  createdAt    DateTime  @default(now())
+
+  department   Department         @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  assignments  ProjectAssignment[]
+
+  @@map("projects")
+}
+
+model ProjectAssignment {
+  id         Int      @id @default(autoincrement())
+  projectId  Int
+  userId     Int
+  startedAt  DateTime @default(now())
+  endedAt    DateTime?
+
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("project_assignments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Identity
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id            Int       @id @default(autoincrement())
+  orgId         Int?
+  departmentId  Int?
+  empCode       String?
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          String    // EMPLOYEE | DEPT_HEAD | ADMIN | SUPER_ADMIN
+  primaryDomain String?
+  yearsExperience Float   @default(0)
+  softSkillScore  Float   @default(0)
+  active        Boolean   @default(true)
+  profileComplete Boolean @default(false)
+  createdAt     DateTime  @default(now())
+
+  organization  Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  department    Department?   @relation("DepartmentMembers", fields: [departmentId], references: [id], onDelete: SetNull)
+  headedDept    Department?   @relation("DepartmentHead")
+
+  performance       PerformanceRecord[]
+  failureEvents     FailureEvent[]
+  strengths         Strength[]
+  certifications    Certification[]
+  newSkills         NewSkill[]
+  roleSuggestions   RoleSuggestion[]
+  roleFeedback      RoleFeedback[]
+  assignments       ProjectAssignment[]
+  invitationsSent   Invitation[]   @relation("InvitedBy")
+  uploads           ExcelUpload[]
+  personalityTest   PersonalityTest?
+
+  @@map("users")
+}
+
+model Invitation {
+  id           Int       @id @default(autoincrement())
+  orgId        Int
+  email        String
+  code         String    @unique
+  role         String    // role to assign on join
+  departmentId Int?
+  invitedById  Int
+  used         Boolean   @default(false)
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Performance pipeline
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ExcelUpload {
+  id            Int       @id @default(autoincrement())
+  departmentId  Int
+  uploadedById  Int
+  cycleStart    DateTime
+  cycleEnd      DateTime
+  fileName      String
+  rowCount      Int       @default(0)
+  notes         String?
+  createdAt     DateTime  @default(now())
+
+  department    Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  uploadedBy    User       @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  records       PerformanceRecord[]
+
+  @@map("excel_uploads")
+}
+
+model PerformanceRecord {
+  id                  Int       @id @default(autoincrement())
+  uploadId            Int
+  userId              Int
+  projectName         String?
+  cycleStart          DateTime
+  cycleEnd            DateTime
+  productivityCycles  Int       @default(1)
+  hoursPerCycle       Float     @default(40)
+  hoursWorked         Float     @default(0)
+  defects             Int       @default(0)
+  defectFixHours      Float     @default(0)
+  avgTurnAroundHours  Float     @default(0) // computed: defectFixHours / defects
+  onTimeSubmission    Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+
+  upload              ExcelUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("performance_records")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Engine outputs
+// ─────────────────────────────────────────────────────────────────────────────
 
 model FailureEvent {
   id                Int      @id @default(autoincrement())
-  employeeId        Int
+  userId            Int
   category          String
   description       String?
   severity          Float    @default(5.0)
   date              DateTime @default(now())
   recoveryTimeDays  Int      @default(30)
-  outcomeAfter      String   @default("neutral")
+  outcomeAfter      String   @default("neutral") // improved | neutral | declined
 
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("failure_events")
 }
 
 model Strength {
   id         Int    @id @default(autoincrement())
-  employeeId Int
+  userId     Int
   name       String
   score      Float  @default(5.0)
-  source     String @default("assessment")
+  source     String @default("derived") // derived | manager | peer_review | assessment
 
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("strengths")
 }
 
 model RoleSuggestion {
   id                Int      @id @default(autoincrement())
-  employeeId        Int
+  userId            Int
+  cycleStart        DateTime
+  cycleEnd          DateTime
   suggestedRole     String
   matchScore        Float
   failureScore      Float    @default(0)
@@ -62,25 +221,103 @@ model RoleSuggestion {
   leadershipScore   Float    @default(0)
   growthTrajectory  String   @default("stable")
   explanation       String?
+  featureImportance String?  // JSON
   createdAt         DateTime @default(now())
 
-  employee Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  audits   EthicalAudit[]
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedback          RoleFeedback[]
+  audits            EthicalAudit[]
 
   @@map("role_suggestions")
+}
+
+model RoleFeedback {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  suggestionId  Int
+  decision      String   // accepted | rejected | unsure
+  desiredRole   String?
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestion    RoleSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+
+  @@map("role_feedback")
 }
 
 model EthicalAudit {
   id           Int      @id @default(autoincrement())
   suggestionId Int
-  framework    String
+  framework    String   // PASSIONIT | PRUTL
   dimension    String
   score        Float
-  riskLevel    String
+  riskLevel    String   // low | medium | high
   notes        String?
   createdAt    DateTime @default(now())
 
-  suggestion RoleSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  suggestion   RoleSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
 
   @@map("ethical_audits")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Holistic growth
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Certification {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  name        String
+  issuer      String?
+  description String?
+  obtainedAt  DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("certifications")
+}
+
+model NewSkill {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  name        String
+  description String?
+  learnedAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("new_skills")
+}
+
+model PersonalityTest {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  openness        Float    @default(0)
+  conscientiousness Float  @default(0)
+  extraversion    Float    @default(0)
+  agreeableness   Float    @default(0)
+  neuroticism     Float    @default(0)
+  takenAt         DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("personality_tests")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reminders
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ReminderLog {
+  id            Int      @id @default(autoincrement())
+  departmentId  Int
+  cycleEnd      DateTime
+  daysToGo      Int
+  shownAt       DateTime @default(now())
+
+  department    Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, cycleEnd, daysToGo])
+  @@map("reminder_logs")
 }

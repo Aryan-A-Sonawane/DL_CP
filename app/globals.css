@@ -292,6 +292,79 @@
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
   }
 
+  .field-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-surface-600);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.4rem;
+  }
+
+  .field-input,
+  .field-select,
+  .field-textarea {
+    background: white;
+    border: 1px solid var(--color-surface-200);
+    border-radius: 12px;
+    color: var(--color-surface-800);
+    padding: 0.65rem 0.9rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition: all 0.2s;
+    width: 100%;
+    font-family: inherit;
+  }
+
+  .field-input::placeholder,
+  .field-textarea::placeholder { color: var(--color-surface-400); }
+
+  .field-input:focus,
+  .field-select:focus,
+  .field-textarea:focus {
+    border-color: var(--color-primary-400);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+  }
+
+  .field-textarea { min-height: 96px; resize: vertical; }
+
+  .form-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    border-radius: 12px;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.8rem;
+  }
+
+  .form-success {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #047857;
+    border-radius: 12px;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.8rem;
+  }
+
+  .btn-primary-block {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .reminder-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    border-radius: 16px;
+    padding: 0.9rem 1.1rem;
+    border: 1px solid;
+    font-size: 0.875rem;
+  }
+  .reminder-banner-info { background: var(--color-primary-50); border-color: var(--color-primary-100); color: var(--color-primary-700); }
+  .reminder-banner-warn { background: #fefce8; border-color: #fde68a; color: #92400e; }
+  .reminder-banner-danger { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
   .kg-node { cursor: pointer; transition: all 0.3s; }
   .kg-node:hover { filter: brightness(1.1); }
   .kg-node-circle { transition: all 0.3s; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.1)); }
