@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, UserPlus, Copy, Check } from "lucide-react";
+import { Loader2, Plus, UserPlus, Copy, Check, UserMinus } from "lucide-react";
 
 interface Dept {
   id: number;
@@ -142,6 +142,13 @@ export default function DepartmentsClient({ initial }: { initial: Dept[] }) {
                     <UserPlus size={12} />
                     Invite to {d.name}
                   </button>
+                  {d.head && (
+                    <RemoveHeadButton
+                      deptId={d.id}
+                      deptName={d.name}
+                      headName={d.head.name}
+                    />
+                  )}
                 </div>
               </div>
             ))}
@@ -159,6 +166,57 @@ export default function DepartmentsClient({ initial }: { initial: Dept[] }) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function RemoveHeadButton({
+  deptId,
+  deptName,
+  headName,
+}: {
+  deptId: number;
+  deptName: string;
+  headName: string;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function remove() {
+    if (
+      !confirm(
+        `Remove ${headName} as head of ${deptName}? They will be demoted to Employee but stay in the department with all their data intact.`,
+      )
+    )
+      return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/admin/departments/${deptId}/head`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not remove head");
+      router.refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not remove head");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="inline-flex flex-col">
+      <button
+        onClick={remove}
+        disabled={busy}
+        className="btn-ghost inline-flex items-center gap-1.5 text-xs text-red-600 hover:bg-red-50"
+      >
+        {busy ? <Loader2 size={12} className="animate-spin" /> : <UserMinus size={12} />}
+        Remove head
+      </button>
+      {err && <span className="text-xs text-red-600 mt-1">{err}</span>}
     </div>
   );
 }

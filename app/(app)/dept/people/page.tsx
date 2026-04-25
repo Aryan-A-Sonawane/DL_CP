@@ -3,6 +3,7 @@ import { Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import DeptInviteButton from "./DeptInviteButton";
+import PeopleRowActions from "./PeopleRowActions";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function DeptPeoplePage() {
           include: { project: { select: { name: true } } },
         },
       },
-      orderBy: { name: "asc" },
+      orderBy: [{ active: "desc" }, { name: "asc" }],
     }),
     prisma.invitation.findMany({
       where: { departmentId: user.departmentId, used: false },
@@ -27,13 +28,16 @@ export default async function DeptPeoplePage() {
     }),
   ]);
 
+  const activeCount = people.filter((p) => p.active).length;
+  const inactiveCount = people.length - activeCount;
+
   return (
     <div className="animate-fade-in space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-surface-900">People in your department</h2>
           <p className="mt-1 text-sm text-surface-500">
-            Invite employees, view assignments and profile completion.
+            Invite employees, manage project assignments, and mark departures.
           </p>
         </div>
         <DeptInviteButton departmentId={user.departmentId} />
@@ -49,46 +53,67 @@ export default async function DeptPeoplePage() {
           </p>
         </div>
       ) : (
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Emp ID</th>
-                <th>Email</th>
-                <th>Active projects</th>
-                <th>Profile</th>
-              </tr>
-            </thead>
-            <tbody>
-              {people.map((p) => (
-                <tr key={p.id}>
-                  <td className="font-semibold text-surface-900">{p.name}</td>
-                  <td className="font-mono text-xs">{p.empCode ?? "—"}</td>
-                  <td>{p.email}</td>
-                  <td>
-                    {p.assignments.length === 0 ? (
-                      <span className="text-surface-400">—</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {p.assignments.map((a) => (
-                          <span key={a.id} className="badge badge-indigo">
-                            {a.project.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`badge ${p.profileComplete ? "badge-emerald" : "badge-amber"}`}>
-                      {p.profileComplete ? "Complete" : "Incomplete"}
-                    </span>
-                  </td>
+        <>
+          <div className="flex gap-3 text-xs text-surface-500">
+            <span className="badge badge-emerald">{activeCount} active</span>
+            {inactiveCount > 0 && (
+              <span className="badge badge-red">{inactiveCount} inactive</span>
+            )}
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Emp ID</th>
+                  <th>Email</th>
+                  <th>Active projects</th>
+                  <th>Profile</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {people.map((p) => (
+                  <tr key={p.id} className={p.active ? "" : "opacity-60"}>
+                    <td className="font-semibold text-surface-900">{p.name}</td>
+                    <td className="font-mono text-xs">{p.empCode ?? "—"}</td>
+                    <td>{p.email}</td>
+                    <td>
+                      {p.assignments.length === 0 ? (
+                        <span className="text-surface-400">—</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {p.assignments.map((a) => (
+                            <span key={a.id} className="badge badge-indigo">
+                              {a.project.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge ${p.profileComplete ? "badge-emerald" : "badge-amber"}`}>
+                        {p.profileComplete ? "Complete" : "Incomplete"}
+                      </span>
+                    </td>
+                    <td>
+                      <PeopleRowActions
+                        userId={p.id}
+                        userName={p.name}
+                        active={p.active}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-surface-400">
+            Tip: to remove someone from a single project (without disabling their
+            account), open <strong>Projects</strong> and click the <code>×</code>
+            on their name in the project card.
+          </p>
+        </>
       )}
 
       {openInvites.length > 0 && (
