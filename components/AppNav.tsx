@@ -14,6 +14,7 @@ import {
   FolderKanban,
   ClipboardList,
   Globe2,
+  Upload,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -41,6 +42,7 @@ const NAV: Record<string, NavItem[]> = {
     { to: "/admin", icon: LayoutDashboard, label: "Org Overview", exact: true },
     { to: "/admin/departments", icon: Building2, label: "Departments" },
     { to: "/admin/people", icon: Users, label: "People" },
+    { to: "/admin/import", icon: Upload, label: "Import" },
     { to: "/admin/audit", icon: ShieldCheck, label: "Audit" },
   ],
   SUPER_ADMIN: [

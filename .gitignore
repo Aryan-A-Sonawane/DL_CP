@@ -11,6 +11,10 @@ next-env.d.ts
 # TypeScript incremental build cache
 *.tsbuildinfo
 
+# Locally-downloaded test artifacts (Excel exports, credentials CSVs, etc.)
+public/excel_reports/
+public/credentials/
+
 # Database
 *.db
 *.db-journal
