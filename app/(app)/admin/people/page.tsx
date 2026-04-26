@@ -3,6 +3,7 @@ import { Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import PeopleClient, { type PersonRow } from "./PeopleClient";
+import ImportEmployeesButton from "./ImportEmployeesButton";
 
 export const dynamic = "force-dynamic";
 
@@ -28,14 +29,19 @@ export default async function AdminPeoplePage() {
     createdAt: p.createdAt.toISOString(),
   }));
 
+  const orgName = user.organization?.name ?? "your organization";
+
   return (
     <div className="animate-fade-in space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold text-surface-900">People</h2>
-        <p className="mt-1 text-sm text-surface-500">
-          Everyone in {user.organization?.name}, by role and department. Demote
-          heads, deactivate departures, or reactivate returning members.
-        </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-surface-900">People</h2>
+          <p className="mt-1 text-sm text-surface-500">
+            Everyone in {orgName}, by role and department. Demote heads,
+            deactivate departures, or reactivate returning members.
+          </p>
+        </div>
+        <ImportEmployeesButton organizationName={orgName} />
       </div>
 
       {rows.length === 0 ? (
@@ -44,7 +50,9 @@ export default async function AdminPeoplePage() {
             <Users size={20} className="text-primary-500" />
           </div>
           <p className="text-sm text-surface-500">
-            No members yet — invite department heads from the Departments page.
+            No members yet — invite department heads from the Departments page,
+            or use <strong>Import employees</strong> above to bulk add from
+            Excel.
           </p>
         </div>
       ) : (
