@@ -77,9 +77,10 @@ export default async function DeptUploadsPage() {
 
       <div className="rounded-2xl border border-primary-100 bg-primary-50/50 px-6 py-4">
         <p className="text-xs text-primary-600/70 leading-relaxed">
-          <strong>Expected columns:</strong> emp name, emp id (primary key), email, project,
-          organization, productivity cycles, hours per cycle, hours worked, defects, time
-          required to fix defects. Header row casing and minor wording variations are handled.
+          <strong>Required columns:</strong> emp name, emp id (primary key), email, hours worked, defects, defect fix time hours.
+          {" "}<strong>Optional enrichment:</strong> project, organization, productivity cycles, hours per cycle,
+          lifecycle (Scrum / Waterfall / SAFe / Kanban / XP…), phase (Sprint Execution / Integration &amp; Testing…), department.
+          Header row casing and minor wording variations are handled automatically.
         </p>
       </div>
     </div>

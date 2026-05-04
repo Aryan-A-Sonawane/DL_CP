@@ -14,6 +14,7 @@ import {
   FolderKanban,
   ClipboardList,
   Globe2,
+  Briefcase,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -38,10 +39,11 @@ const NAV: Record<string, NavItem[]> = {
     { to: "/dept/settings", icon: GitBranch, label: "Cycle Settings" },
   ],
   ADMIN: [
-    { to: "/admin", icon: LayoutDashboard, label: "Org Overview", exact: true },
-    { to: "/admin/departments", icon: Building2, label: "Departments" },
-    { to: "/admin/people", icon: Users, label: "People" },
-    { to: "/admin/audit", icon: ShieldCheck, label: "Audit" },
+    { to: "/admin",             icon: LayoutDashboard, label: "Org Overview",  exact: true },
+    { to: "/admin/departments", icon: Building2,        label: "Departments" },
+    { to: "/admin/people",      icon: Users,            label: "People" },
+    { to: "/admin/roles",       icon: Briefcase,        label: "Role Catalog" },
+    { to: "/admin/audit",       icon: ShieldCheck,      label: "Audit" },
   ],
   SUPER_ADMIN: [
     { to: "/super", icon: LayoutDashboard, label: "Platform", exact: true },

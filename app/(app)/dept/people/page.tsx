@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Users } from "lucide-react";
+import { Users, BarChart2 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import DeptInviteButton from "./DeptInviteButton";
@@ -69,13 +70,21 @@ export default async function DeptPeoplePage() {
                   <th>Email</th>
                   <th>Active projects</th>
                   <th>Profile</th>
+                  <th>Analysis</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {people.map((p) => (
                   <tr key={p.id} className={p.active ? "" : "opacity-60"}>
-                    <td className="font-semibold text-surface-900">{p.name}</td>
+                    <td className="font-semibold text-surface-900">
+                      <Link
+                        href={`/dept/people/${p.id}`}
+                        className="hover:text-primary-600 transition-colors"
+                      >
+                        {p.name}
+                      </Link>
+                    </td>
                     <td className="font-mono text-xs">{p.empCode ?? "—"}</td>
                     <td>{p.email}</td>
                     <td>
@@ -95,6 +104,15 @@ export default async function DeptPeoplePage() {
                       <span className={`badge ${p.profileComplete ? "badge-emerald" : "badge-amber"}`}>
                         {p.profileComplete ? "Complete" : "Incomplete"}
                       </span>
+                    </td>
+                    <td>
+                      <Link
+                        href={`/dept/people/${p.id}`}
+                        className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                      >
+                        <BarChart2 size={12} />
+                        View
+                      </Link>
                     </td>
                     <td>
                       <PeopleRowActions

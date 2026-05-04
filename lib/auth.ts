@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual, randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
-import { prisma } from "./db";
+import { prisma, withRetry } from "./db";
 
 const COOKIE_NAME = "frm_session";
 const COOKIE_TTL_SECONDS = 60 * 60 * 24 * 14; // 14 days
@@ -79,10 +79,12 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function getCurrentUser() {
   const sess = await getSession();
   if (!sess) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: sess.uid },
-    include: { organization: true, department: true },
-  });
+  const user = await withRetry(() =>
+    prisma.user.findUnique({
+      where: { id: sess.uid },
+      include: { organization: true, department: true },
+    })
+  );
   if (!user || !user.active) return null;
   return user;
 }

@@ -3,15 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, LogIn } from "lucide-react";
+import { Loader2, LogIn, Eye, EyeOff } from "lucide-react";
 import AuthShell from "@/components/AuthShell";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email,     setEmail]     = useState("");
+  const [password,  setPassword]  = useState("");
+  const [showPw,    setShowPw]    = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error,     setError]     = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -19,9 +20,9 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const res = await fetch("/api/auth/login", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body:    JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Sign-in failed");
@@ -47,16 +48,18 @@ export default function LoginPage() {
           or{" "}
           <Link href="/join" className="text-primary-600 font-semibold hover:underline">
             join with an invite code
-          </Link>
-          .
+          </Link>.
         </>
       }
     >
       <form onSubmit={onSubmit} className="space-y-4">
         {error && <div className="form-error">{error}</div>}
+
+        {/* Email */}
         <div>
           <label className="field-label">Work email</label>
           <input
+            id="login-email"
             className="field-input"
             type="email"
             value={email}
@@ -66,17 +69,43 @@ export default function LoginPage() {
             required
           />
         </div>
+
+        {/* Password + show/hide + forgot */}
         <div>
-          <label className="field-label">Password</label>
-          <input
-            className="field-input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <div className="flex items-center justify-between mb-1">
+            <label className="field-label" style={{ marginBottom: 0 }}>Password</label>
+            <Link
+              href="/forgot-password"
+              className="text-xs text-primary-600 font-medium hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+          <div className="relative">
+            <input
+              id="login-password"
+              className="field-input field-input-icon"
+              type={showPw ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your password"
+              required
+            />
+            <button
+              type="button"
+              id="btn-toggle-pw"
+              onClick={() => setShowPw((v) => !v)}
+              tabIndex={-1}
+              title={showPw ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 transition-colors"
+            >
+              {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </div>
+
         <button
+          id="btn-login-submit"
           type="submit"
           disabled={submitting}
           className="btn-primary btn-primary-block inline-flex items-center gap-2"

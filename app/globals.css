@@ -329,6 +329,9 @@
 
   .field-textarea { min-height: 96px; resize: vertical; }
 
+  /* Use when an icon/button sits inside the input on the right */
+  .field-input-icon { padding-right: 2.75rem !important; }
+
   .form-error {
     background: #fef2f2;
     border: 1px solid #fecaca;

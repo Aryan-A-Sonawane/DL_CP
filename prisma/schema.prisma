@@ -1,10 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -17,6 +18,7 @@ model Organization {
   slug          String       @unique
   industry      String?
   size          String?
+  orgType       String       @default("other") // it_services | product | consulting | startup | enterprise | other
   contactEmail  String?
   active        Boolean      @default(true)
   createdAt     DateTime     @default(now())
@@ -24,6 +26,7 @@ model Organization {
   users         User[]
   departments   Department[]
   invitations   Invitation[]
+  roles         OrgRole[]
 
   @@map("organizations")
 }
@@ -112,6 +115,7 @@ model User {
   invitationsSent   Invitation[]   @relation("InvitedBy")
   uploads           ExcelUpload[]
   personalityTest   PersonalityTest?
+  passwordResets    PasswordResetToken[]
 
   @@map("users")
 }
@@ -306,6 +310,27 @@ model PersonalityTest {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Role catalog (org-scoped)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// OrgRole — a role the organisation recognises and can have suggested.
+// Seeded from ROLE_CATALOG on org creation; admins can add / toggle / delete.
+model OrgRole {
+  id           Int      @id @default(autoincrement())
+  orgId        Int
+  title        String
+  category     String   // Engineering | Testing & QA | Data & Analytics | …
+  active       Boolean  @default(true)
+  isCustom     Boolean  @default(false) // true when admin added it manually
+  createdAt    DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, title])
+  @@map("org_roles")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Reminders
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -320,4 +345,22 @@ model ReminderLog {
 
   @@unique([departmentId, cycleEnd, daysToGo])
   @@map("reminder_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Password reset
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Short-lived token (30 min TTL). One active token per user at a time.
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }

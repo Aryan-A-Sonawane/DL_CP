@@ -11,6 +11,12 @@ export interface ParsedRow {
   hoursWorked: number;
   defects: number;
   defectFixHours: number;
+  /** Software lifecycle methodology (e.g. Scrum, Waterfall, SAFe) */
+  lifecycle?: string;
+  /** Lifecycle phase at time of record (e.g. Sprint Execution, Integration & Testing) */
+  phase?: string;
+  /** Department name from the sheet (informational; org-scoped queries use DB dept) */
+  department?: string;
 }
 
 export interface ParseResult {
@@ -30,12 +36,17 @@ const HEADER_ALIASES: Record<keyof ParsedRow, string[]> = {
   defects: ["defects", "no of defects", "number of defects", "defect count"],
   defectFixHours: [
     "defect fix hours",
+    "defect fix time hours",
     "time to fix defects",
     "fix time",
     "defect fix time",
     "time required to fix defects",
     "time required to fix those defects",
   ],
+  // ── New enrichment columns (optional) ──────────────────────────────────────
+  lifecycle:  ["lifecycle", "life cycle", "methodology", "sdlc"],
+  phase:      ["phase", "sprint phase", "cycle phase", "project phase"],
+  department: ["department", "dept", "team", "division"],
 };
 
 function normalize(s: string): string {
@@ -138,6 +149,9 @@ export async function parseExcelBuffer(buf: ArrayBuffer | Buffer): Promise<Parse
       hoursWorked: num(cell("hoursWorked")),
       defects: num(cell("defects")),
       defectFixHours: num(cell("defectFixHours")),
+      lifecycle:  map.lifecycle  !== undefined ? str(cell("lifecycle"))  || undefined : undefined,
+      phase:      map.phase      !== undefined ? str(cell("phase"))      || undefined : undefined,
+      department: map.department !== undefined ? str(cell("department")) || undefined : undefined,
     });
   });
 

@@ -7,14 +7,18 @@
   },
   "scripts": {
     "dev": "prisma db push --skip-generate && tsx lib/seed.ts && next dev",
+    "dev:fast": "tsx lib/seed.ts && next dev",
+    "db:push": "prisma db push --skip-generate",
+    "db:migrate": "prisma db push --skip-generate && prisma generate",
     "build": "prisma generate && prisma db push --accept-data-loss --skip-generate && tsx lib/seed.ts && next build",
     "start": "next start",
     "lint": "next lint",
-    "db:push": "prisma db push",
     "db:seed": "tsx lib/seed.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "@prisma/adapter-neon": "^7.8.0",
     "@prisma/client": "^5.22.0",
     "@types/nodemailer": "^8.0.0",
     "bcryptjs": "^3.0.3",

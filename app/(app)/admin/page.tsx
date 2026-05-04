@@ -4,6 +4,8 @@ import {
   Users,
   GitBranch,
   Brain,
+  Shield,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -17,7 +19,7 @@ export default async function AdminOverview() {
   if (!user || user.role !== "ADMIN" || !user.orgId) redirect("/dashboard");
   const orgId = user.orgId;
 
-  const [deptCount, memberCount, projectCount, suggestionCount, depts, recentInvites] =
+  const [deptCount, memberCount, projectCount, suggestionCount, depts, recentInvites, recentSuggestions, deptStats] =
     await Promise.all([
       prisma.department.count({ where: { orgId } }),
       prisma.user.count({ where: { orgId, role: { not: "ADMIN" } } }),
@@ -37,6 +39,36 @@ export default async function AdminOverview() {
         take: 5,
         include: { invitedBy: { select: { name: true } } },
       }),
+      // AI Analysis: recent 5 role suggestions org-wide
+      prisma.roleSuggestion.findMany({
+        where: { user: { orgId } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: {
+          user: { select: { name: true, empCode: true, department: { select: { name: true } } } },
+        },
+      }),
+      // Per-dept average resilience
+      prisma.department.findMany({
+        where: { orgId },
+        select: { id: true, name: true },
+      }).then((ds) =>
+        Promise.all(
+          ds.map(async (d) => {
+            const agg = await prisma.roleSuggestion.aggregate({
+              where: { user: { departmentId: d.id } },
+              _avg: { resilienceIndex: true, failureScore: true },
+              _count: { id: true },
+            });
+            return {
+              name: d.name,
+              avgResilience: Math.round((agg._avg.resilienceIndex ?? 0) * 10) / 10,
+              avgFailure: Math.round((agg._avg.failureScore ?? 0) * 10) / 10,
+              count: agg._count.id,
+            };
+          }),
+        ).then((rows) => rows.filter((r) => r.count > 0))
+      ),
     ]);
 
   return (
@@ -150,6 +182,115 @@ export default async function AdminOverview() {
               </tbody>
             </table>
           </div>
+        )}
+      </section>
+
+      {/* ── AI Analysis Summary ────────────────────────────────────────────── */}
+      <section className="card p-8">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-lg font-bold text-surface-900">AI Analysis Summary</h3>
+            <p className="text-sm text-surface-500 mt-1">
+              Resilience and failure scores aggregated by the Failure Intelligence Mapper.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 bg-primary-50 px-3 py-1.5 rounded-full">
+            <Brain size={12} />
+            Engine active
+          </div>
+        </div>
+
+        {deptStats.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <Brain size={28} className="text-surface-300" />
+            <p className="mt-3 text-sm text-surface-500">
+              No analysis data yet — department heads need to upload cycle reports first.
+            </p>
+          </div>
+        ) : (
+          <div className="table-container mb-6">
+            <table>
+              <thead>
+                <tr>
+                  <th>Department</th>
+                  <th>Avg Resilience</th>
+                  <th>Avg Failure Score</th>
+                  <th>Resilience bar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deptStats.sort((a, b) => b.avgResilience - a.avgResilience).map((d) => (
+                  <tr key={d.name}>
+                    <td className="font-medium text-surface-800">{d.name}</td>
+                    <td>
+                      <span className={`badge ${
+                        d.avgResilience >= 70 ? "badge-emerald" :
+                        d.avgResilience >= 40 ? "badge-amber" : "badge-red"
+                      }`}>{d.avgResilience}</span>
+                    </td>
+                    <td>
+                      <span className={`badge ${
+                        d.avgFailure <= 30 ? "badge-emerald" :
+                        d.avgFailure <= 60 ? "badge-amber" : "badge-red"
+                      }`}>{d.avgFailure}</span>
+                    </td>
+                    <td className="min-w-[140px]">
+                      <div className="h-2 rounded-full bg-surface-100">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-primary-400 to-violet-400 transition-all"
+                          style={{ width: `${Math.min(d.avgResilience, 100)}%` }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {recentSuggestions.length > 0 && (
+          <>
+            <h4 className="text-sm font-semibold text-surface-700 mb-3">Recent role suggestions</h4>
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Department</th>
+                    <th>Suggested Role</th>
+                    <th>Match</th>
+                    <th>Resilience</th>
+                    <th>Trajectory</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentSuggestions.map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <p className="font-medium text-surface-800">{s.user.name}</p>
+                        {s.user.empCode && (
+                          <p className="text-xs text-surface-400 font-mono">#{s.user.empCode}</p>
+                        )}
+                      </td>
+                      <td className="text-sm text-surface-600">{s.user.department?.name ?? "—"}</td>
+                      <td className="font-medium text-surface-800">{s.suggestedRole}</td>
+                      <td><span className="badge badge-indigo">{s.matchScore.toFixed(1)}%</span></td>
+                      <td>{s.resilienceIndex.toFixed(1)}</td>
+                      <td>
+                        <span className={`badge ${
+                          s.growthTrajectory === "ascending" ? "badge-emerald" :
+                          s.growthTrajectory === "descending" ? "badge-red" : "badge-amber"
+                        }`}>
+                          {s.growthTrajectory.charAt(0).toUpperCase() + s.growthTrajectory.slice(1)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
     </div>

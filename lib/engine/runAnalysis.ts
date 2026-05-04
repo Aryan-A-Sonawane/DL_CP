@@ -10,6 +10,51 @@ import { matchRoles } from "./roleMatcher";
 import { generateExplanationText, generateFeatureImportance } from "./explainability";
 import type { FailureEventInput, StrengthInput } from "./types";
 
+const DL_SERVICE_URL = process.env.DL_SERVICE_URL ?? "http://localhost:8000";
+
+/**
+ * Call the Python DL microservice for model-based scoring.
+ * Returns null on any error (network down, timeout, etc.) so the caller
+ * can fall back to JS heuristics gracefully.
+ */
+async function callDlService(payload: {
+  hours_worked: number;
+  hours_per_cycle: number;
+  defects: number;
+  defect_fix_hours: number;
+  productivity_cycles: number;
+  on_time: boolean;
+  soft_skill_score: number;
+  years_experience: number;
+  js_resilience: number;
+  js_failure_score: number;
+  js_leadership_score: number;
+  failure_events: { category: string; severity: number; recovery_time_days: number; outcome_after: string; days_ago: number }[];
+  strengths: { name: string; score: number }[];
+  lifecycle?: string;
+}): Promise<{
+  resilience_index: number;
+  failure_score: number;
+  growth_trajectory: string;
+  top_roles: { role: string; match_score: number; rank: number }[];
+} | null> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000); // 5s timeout
+    const res = await fetch(`${DL_SERVICE_URL}/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null; // service down — use JS fallback
+  }
+}
+
 /**
  * Translate raw performance records into FailureEvent inputs the engine
  * understands. Heuristics:
@@ -70,6 +115,10 @@ interface AnalysisOptions {
  * Run the full Failure Intelligence Mapper for a single user, persisting:
  *   - Derived FailureEvent rows for this cycle
  *   - A RoleSuggestion (top match) for this cycle
+ *
+ * Scoring priority:
+ *   1. Python DL service (if reachable) — model-based scores (70% weight)
+ *   2. JS heuristic engine — always runs as baseline/fallback (30% weight)
  */
 export async function runAnalysisForUser(userId: number, opts: AnalysisOptions) {
   const user = await prisma.user.findUnique({
@@ -77,6 +126,23 @@ export async function runAnalysisForUser(userId: number, opts: AnalysisOptions) 
     include: { strengths: true },
   });
   if (!user) return null;
+
+  // ── Fetch org's active role catalog ────────────────────────────────────────
+  let allowedRoles: string[] | undefined;
+  let roleCategories: Map<string, string> | undefined;
+
+  if (user.orgId) {
+    const orgRoles = await prisma.orgRole.findMany({
+      where: { orgId: user.orgId, active: true },
+      select: { title: true, category: true },
+    });
+    if (orgRoles.length > 0) {
+      allowedRoles   = orgRoles.map((r) => r.title);
+      roleCategories = new Map(orgRoles.map((r) => [r.title, r.category]));
+    }
+  }
+  // If org has no roles configured yet, allowedRoles stays undefined and
+  // matchRoles falls back to the built-in ROLE_DEFINITIONS.
 
   const records = await prisma.performanceRecord.findMany({
     where: {
@@ -112,33 +178,86 @@ export async function runAnalysisForUser(userId: number, opts: AnalysisOptions) 
     source: s.source,
   }));
 
-  const failureScore = computeFailureScore(allEvents);
-  const resilienceIndex = computeResilienceIndex(allEvents, user.softSkillScore);
-  const leadershipScore = computeLeadershipScore(allEvents, strengthInputs, user.softSkillScore);
+  // ── JS heuristic baseline ──────────────────────────────────────────────────
+  const jsFailureScore    = computeFailureScore(allEvents);
+  const jsResilienceIndex = computeResilienceIndex(allEvents, user.softSkillScore);
+  const jsLeadershipScore = computeLeadershipScore(allEvents, strengthInputs, user.softSkillScore);
   const emotionalRecovery = computeEmotionalRecoveryScore(allEvents);
-  const growthTrajectory = computeGrowthTrajectory(allEvents);
+  const jsGrowthTrajectory = computeGrowthTrajectory(allEvents);
   const transformationalLearning = computeTransformationalLearningScore(allEvents);
+  const jsMatches = matchRoles(strengthInputs, allEvents, user.softSkillScore, jsResilienceIndex, 1, allowedRoles, roleCategories);
 
-  const matches = matchRoles(strengthInputs, allEvents, user.softSkillScore, resilienceIndex, 1);
-  const top = matches[0];
-  if (!top) return null;
+  // ── DL service (blended scoring) ──────────────────────────────────────────
+  let failureScore    = jsFailureScore;
+  let resilienceIndex = jsResilienceIndex;
+  let growthTrajectory: string = jsGrowthTrajectory;
+  let topRoleName   = jsMatches[0]?.role    ?? "Technical Architect";
+  let topMatchScore = jsMatches[0]?.match_score ?? 0;
+
+  const latestRecord = records.at(-1);
+  if (latestRecord) {
+    const nowMs = Date.now();
+    const dlResult = await callDlService({
+      hours_worked:      latestRecord.hoursWorked,
+      hours_per_cycle:   latestRecord.hoursPerCycle,
+      defects:           latestRecord.defects,
+      defect_fix_hours:  latestRecord.defectFixHours,
+      productivity_cycles: latestRecord.productivityCycles,
+      on_time:           latestRecord.onTimeSubmission,
+      soft_skill_score:  user.softSkillScore,
+      years_experience:  user.yearsExperience,
+      js_resilience:     jsResilienceIndex,
+      js_failure_score:  jsFailureScore,
+      js_leadership_score: jsLeadershipScore,
+      failure_events: allEvents.slice(0, 20).map((e) => ({
+        category:          e.category,
+        severity:          e.severity ?? 5,
+        recovery_time_days: e.recoveryTimeDays ?? 30,
+        outcome_after:     String(e.outcomeAfter ?? "neutral"),
+        days_ago: e.date ? (nowMs - new Date(e.date).getTime()) / 86_400_000 : 0,
+      })),
+      strengths: strengthInputs.map((s) => ({ name: s.name, score: s.score })),
+    });
+
+    if (dlResult) {
+      // Blend: DL scores take priority (70% DL + 30% JS)
+      resilienceIndex  = Math.round((dlResult.resilience_index * 0.7 + jsResilienceIndex * 0.3) * 10) / 10;
+      failureScore     = Math.round((dlResult.failure_score    * 0.7 + jsFailureScore    * 0.3) * 10) / 10;
+      growthTrajectory = dlResult.growth_trajectory;
+
+      // Filter DL top_roles to only those in the org's allowed catalog
+      const allowedSet = allowedRoles ? new Set(allowedRoles) : null;
+      const filteredDlRoles = dlResult.top_roles.filter(
+        (r) => !allowedSet || allowedSet.has(r.role),
+      );
+
+      if (filteredDlRoles.length > 0) {
+        topRoleName   = filteredDlRoles[0].role;
+        topMatchScore = filteredDlRoles[0].match_score;
+      } else if (jsMatches.length > 0) {
+        // DL suggested nothing in the org catalog — fall back to JS result
+        topRoleName   = jsMatches[0].role;
+        topMatchScore = jsMatches[0].match_score;
+      }
+    }
+  }
 
   const featureImportance = generateFeatureImportance(
     allEvents,
     strengthInputs,
     resilienceIndex,
     user.softSkillScore,
-    leadershipScore,
+    jsLeadershipScore,
   );
 
   const explanation = generateExplanationText(
     user.name,
-    top.role,
-    top.match_score,
+    topRoleName,
+    topMatchScore,
     allEvents,
     strengthInputs,
     resilienceIndex,
-    leadershipScore,
+    jsLeadershipScore,
   );
 
   const suggestion = await prisma.$transaction(async (tx) => {
@@ -146,25 +265,25 @@ export async function runAnalysisForUser(userId: number, opts: AnalysisOptions) 
       await tx.failureEvent.createMany({
         data: derived.map((e) => ({
           userId,
-          category: e.category,
-          description: e.description ?? null,
-          severity: e.severity,
-          date: e.date as Date,
-          recoveryTimeDays: e.recoveryTimeDays,
-          outcomeAfter: String(e.outcomeAfter),
+          category:          e.category,
+          description:       e.description ?? null,
+          severity:          e.severity,
+          date:              e.date as Date,
+          recoveryTimeDays:  e.recoveryTimeDays,
+          outcomeAfter:      String(e.outcomeAfter),
         })),
       });
     }
     return tx.roleSuggestion.create({
       data: {
         userId,
-        cycleStart: opts.cycleStart,
-        cycleEnd: opts.cycleEnd,
-        suggestedRole: top.role,
-        matchScore: top.match_score,
+        cycleStart:     opts.cycleStart,
+        cycleEnd:       opts.cycleEnd,
+        suggestedRole:  topRoleName,
+        matchScore:     topMatchScore,
         failureScore,
         resilienceIndex,
-        leadershipScore,
+        leadershipScore: jsLeadershipScore,
         growthTrajectory,
         explanation,
         featureImportance: JSON.stringify(featureImportance),
@@ -176,11 +295,11 @@ export async function runAnalysisForUser(userId: number, opts: AnalysisOptions) 
     suggestion,
     failureScore,
     resilienceIndex,
-    leadershipScore,
+    leadershipScore: jsLeadershipScore,
     emotionalRecovery,
     transformationalLearning,
     growthTrajectory,
-    matches,
+    matches: jsMatches,
     featureImportance,
     explanation,
   };

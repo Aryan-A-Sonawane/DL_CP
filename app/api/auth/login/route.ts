@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withRetry } from "@/lib/db";
 import { setSessionCookie, verifyPassword, defaultDashboardPath, type Role } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await withRetry(() => prisma.user.findUnique({ where: { email } }));
   if (!user || !user.active) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }

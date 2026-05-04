@@ -1,0 +1,28 @@
+{
+  "resilience_mlp": {
+    "best_val_loss": 0.000158594838473439,
+    "epochs": 80,
+    "mae": 1.26
+  },
+  "failure_lstm": {
+    "best_val_loss": 0.30734534328486646,
+    "trajectory_accuracy": 86.1,
+    "epochs": 60
+  },
+  "role_matcher": {
+    "best_val_loss": 0.3348354539092706,
+    "matching_accuracy": 89.3,
+    "epochs": 80
+  },
+  "total_training_time_seconds": 91.8,
+  "last_retrain": {
+    "feedback_count": 0,
+    "role_matcher": {
+      "status": "skipped",
+      "reason": "no feedback data"
+    },
+    "performance_records": 3,
+    "new_records_since_last_train": 3,
+    "base_retrain": "skipped (need 10+ new records, have 3)"
+  }
+}

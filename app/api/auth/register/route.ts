@@ -6,6 +6,7 @@ import {
   setSessionCookie,
   type Role,
 } from "@/lib/auth";
+import { ROLE_CATALOG, getPresetRoles, type OrgType } from "@/lib/roleCatalog";
 
 function slugify(s: string): string {
   return s
@@ -16,18 +17,23 @@ function slugify(s: string): string {
     .slice(0, 40);
 }
 
+const VALID_ORG_TYPES: OrgType[] = [
+  "it_services", "product", "consulting", "startup", "enterprise", "other",
+];
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const orgName = String(body?.orgName ?? "").trim();
-  const industry = String(body?.industry ?? "").trim() || null;
-  const size = String(body?.size ?? "").trim() || null;
+  const orgName   = String(body?.orgName   ?? "").trim();
+  const industry  = String(body?.industry  ?? "").trim() || null;
+  const size      = String(body?.size      ?? "").trim() || null;
+  const orgType   = (VALID_ORG_TYPES.includes(body?.orgType) ? body.orgType : "other") as OrgType;
   const adminName = String(body?.adminName ?? "").trim();
-  const email = String(body?.email ?? "").trim().toLowerCase();
-  const password = String(body?.password ?? "");
+  const email     = String(body?.email     ?? "").trim().toLowerCase();
+  const password  = String(body?.password  ?? "");
 
-  if (!orgName) return NextResponse.json({ error: "Organization name required." }, { status: 400 });
-  if (!adminName) return NextResponse.json({ error: "Your name is required." }, { status: 400 });
-  if (!email.includes("@")) return NextResponse.json({ error: "Valid email required." }, { status: 400 });
+  if (!orgName)  return NextResponse.json({ error: "Organization name required." },          { status: 400 });
+  if (!adminName) return NextResponse.json({ error: "Your name is required." },              { status: 400 });
+  if (!email.includes("@")) return NextResponse.json({ error: "Valid email required." },     { status: 400 });
   if (password.length < 8) return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -39,10 +45,14 @@ export async function POST(req: NextRequest) {
     slug = `${baseSlug}-${i}`;
   }
 
+  // Resolve the role titles to seed for this org type
+  const presetTitles = new Set(getPresetRoles(orgType));
+  const rolesToSeed = ROLE_CATALOG.filter((r) => presetTitles.has(r.title));
+
   const passwordHash = await hashPassword(password);
   const result = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.create({
-      data: { name: orgName, slug, industry, size, contactEmail: email },
+      data: { name: orgName, slug, industry, size, orgType, contactEmail: email },
     });
     const user = await tx.user.create({
       data: {
@@ -54,6 +64,19 @@ export async function POST(req: NextRequest) {
         profileComplete: true,
       },
     });
+    // Seed the role catalog for this org based on org type
+    if (rolesToSeed.length > 0) {
+      await tx.orgRole.createMany({
+        data: rolesToSeed.map((r) => ({
+          orgId: org.id,
+          title: r.title,
+          category: r.category,
+          active: true,
+          isCustom: false,
+        })),
+        skipDuplicates: true,
+      });
+    }
     return { org, user };
   });
 
