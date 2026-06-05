@@ -50,5 +50,9 @@ dl_services/**/__pycache__/
 *.pyc
 *.pyo
 
+# Python virtualenv for the DL microservice (large; recreate from requirements.txt)
+dl_services/.venv/
+.venv/
+
 # Script scratch / one-off files
 scripts/_get_employees.mjs

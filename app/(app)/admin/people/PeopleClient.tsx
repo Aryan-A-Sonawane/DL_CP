@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, UserMinus, UserCheck, ShieldOff } from "lucide-react";
+import { roleLabel } from "@/lib/labels";
 
 export interface PersonRow {
   id: number;
@@ -63,7 +64,7 @@ export default function PeopleClient({ initial }: { initial: PersonRow[] }) {
         >
           <option value="all">All roles</option>
           <option value="DEPT_HEAD">Department Heads</option>
-          <option value="EMPLOYEE">Employees</option>
+          <option value="EMPLOYEE">Team Members</option>
         </select>
       </div>
 
@@ -146,7 +147,7 @@ function Row({ person }: { person: PersonRow }) {
     if (person.role !== "DEPT_HEAD" || !person.departmentId) return;
     if (
       !confirm(
-        `Remove ${person.name} as head of ${person.departmentName}? They will be demoted to Employee but stay in the department.`,
+        `Remove ${person.name} as head of ${person.departmentName}? They will be demoted to Team Member but stay in the department.`,
       )
     )
       return;
@@ -177,7 +178,7 @@ function Row({ person }: { person: PersonRow }) {
             person.role === "DEPT_HEAD" ? "badge-violet" : "badge-indigo"
           }`}
         >
-          {person.role}
+          {roleLabel(person.role)}
         </span>
       </td>
       <td>{person.departmentName ?? "—"}</td>
@@ -202,7 +203,7 @@ function Row({ person }: { person: PersonRow }) {
               onClick={demote}
               disabled={busy !== null}
               className="btn-ghost inline-flex items-center gap-1 text-xs text-violet-600 hover:bg-violet-50 px-2 py-1"
-              title="Remove as Department Head (keeps them as Employee)"
+              title="Remove as Department Head (keeps them as Team Member)"
             >
               {busy === "demote" ? (
                 <Loader2 size={11} className="animate-spin" />

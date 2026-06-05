@@ -200,7 +200,7 @@ export default function LandingPage() {
 
 const ROLES = [
   {
-    title: "Employee",
+    title: "Team Member",
     desc: "See your own progress, give feedback on suggested roles, log new skills and certifications.",
     icon: Users,
     bg: "bg-primary-50",

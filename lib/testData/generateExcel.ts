@@ -19,6 +19,7 @@ export async function generateSampleExcel(orgName: string): Promise<Buffer> {
     { header: "Emp ID", key: "empId", width: 12 },
     { header: "Emp Name", key: "name", width: 22 },
     { header: "Email", key: "email", width: 28 },
+    { header: "Role", key: "role", width: 12 },
     { header: "Project", key: "project", width: 22 },
     { header: "Organization", key: "org", width: 22 },
     { header: "Productivity Cycles", key: "cycles", width: 14 },
@@ -42,6 +43,9 @@ export async function generateSampleExcel(orgName: string): Promise<Buffer> {
       empId: emp.empCode,
       name: `${emp.firstName} ${emp.lastName}`,
       email: emp.email,
+      // Demo: treat very junior profiles as interns so the strict Role
+      // column shows both values. Real reports set this per person.
+      role: emp.yearsExperience <= 2 ? "Intern" : "employee",
       project: emp.project,
       org: orgName,
       cycles: 1,

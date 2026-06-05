@@ -186,7 +186,7 @@ function RemoveHeadButton({
   async function remove() {
     if (
       !confirm(
-        `Remove ${headName} as head of ${deptName}? They will be demoted to Employee but stay in the department with all their data intact.`,
+        `Remove ${headName} as head of ${deptName}? They will be demoted to Team Member but stay in the department with all their data intact.`,
       )
     )
       return;
@@ -335,7 +335,7 @@ function InviteModal({
                 value={role}
                 onChange={(e) => setRole(e.target.value as "DEPT_HEAD" | "EMPLOYEE")}
               >
-                <option value="EMPLOYEE">Employee</option>
+                <option value="EMPLOYEE">Team Member</option>
                 <option value="DEPT_HEAD">Department Head</option>
               </select>
             </div>

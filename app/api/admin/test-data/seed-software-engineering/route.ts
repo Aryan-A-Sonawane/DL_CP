@@ -116,6 +116,7 @@ export async function POST() {
             email: emp.email,
             passwordHash,
             role: "EMPLOYEE",
+            employmentType: emp.yearsExperience <= 2 ? "intern" : "employee",
             yearsExperience: emp.yearsExperience,
             softSkillScore: emp.softSkillScore,
             profileComplete: true,

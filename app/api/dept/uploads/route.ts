@@ -36,7 +36,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cycle = activeCycleWindow(dept.cycleAnchor, dept.cycleLengthDays);
+    // Default to the department's current cycle window. If the sheet carries an
+    // explicit Cycle Start/End (e.g. a back-dated monthly report), honour that
+    // instead so historical cycles land on the right month.
+    let cycle = activeCycleWindow(dept.cycleAnchor, dept.cycleLengthDays);
+    const sheetStart = parsed.rows.find((r) => r.cycleStart)?.cycleStart;
+    const sheetEnd = parsed.rows.find((r) => r.cycleEnd)?.cycleEnd;
+    if (sheetStart && sheetEnd && sheetEnd > sheetStart) {
+      cycle = {
+        start: sheetStart,
+        end: sheetEnd,
+        daysToGo: 0,
+        totalDays: Math.round((sheetEnd.getTime() - sheetStart.getTime()) / 86_400_000),
+      };
+    }
 
     // Match rows to existing dept members by empCode (preferred) or email
     const codes = parsed.rows.map((r) => r.empCode).filter(Boolean);
@@ -76,12 +89,16 @@ export async function POST(req: NextRequest) {
         });
         continue;
       }
-      // Backfill empCode if user didn't have one
-      if (row.empCode) {
-        await prisma.user
-          .update({ where: { id: userId }, data: { empCode: row.empCode } })
-          .catch(() => {/* ignore unique conflict */});
-      }
+      // Backfill empCode (if missing) and the employment type from the sheet.
+      await prisma.user
+        .update({
+          where: { id: userId },
+          data: {
+            employmentType: row.role,
+            ...(row.empCode ? { empCode: row.empCode } : {}),
+          },
+        })
+        .catch(() => {/* ignore unique conflict on empCode */});
       const tat = row.defects > 0 ? row.defectFixHours / row.defects : 0;
       const onTime = row.hoursWorked >= row.hoursPerCycle * 0.85;
       await prisma.performanceRecord.create({

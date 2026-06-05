@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { employmentTypeLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,9 @@ export default async function EmployeeAnalysisPage({
           </p>
         </div>
         <div className="flex gap-2 items-center">
+          <span className={`badge ${employee.employmentType === "intern" ? "badge-amber" : "badge-indigo"}`}>
+            {employmentTypeLabel(employee.employmentType)}
+          </span>
           <span className={`badge ${employee.profileComplete ? "badge-emerald" : "badge-amber"}`}>
             Profile {employee.profileComplete ? "complete" : "incomplete"}
           </span>

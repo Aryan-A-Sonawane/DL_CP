@@ -256,7 +256,7 @@ export default async function AdminOverview() {
               <table>
                 <thead>
                   <tr>
-                    <th>Employee</th>
+                    <th>Team Member</th>
                     <th>Department</th>
                     <th>Suggested Role</th>
                     <th>Match</th>

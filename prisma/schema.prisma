@@ -92,6 +92,7 @@ model User {
   email         String    @unique
   passwordHash  String
   role          String    // EMPLOYEE | DEPT_HEAD | ADMIN | SUPER_ADMIN
+  employmentType String   @default("employee") // employee | intern (from cycle reports)
   primaryDomain String?
   yearsExperience Float   @default(0)
   softSkillScore  Float   @default(0)

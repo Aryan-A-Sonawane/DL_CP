@@ -84,6 +84,9 @@ export default async function DeptPeoplePage() {
                       >
                         {p.name}
                       </Link>
+                      {p.employmentType === "intern" && (
+                        <span className="badge badge-amber ml-2">Intern</span>
+                      )}
                     </td>
                     <td className="font-mono text-xs">{p.empCode ?? "—"}</td>
                     <td>{p.email}</td>

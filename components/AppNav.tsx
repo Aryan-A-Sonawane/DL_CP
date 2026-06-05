@@ -132,6 +132,6 @@ function roleLabel(role: string) {
       return "Department Head";
     case "EMPLOYEE":
     default:
-      return "Employee";
+      return "Team Member";
   }
 }
