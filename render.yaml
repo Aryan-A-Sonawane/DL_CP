@@ -1,0 +1,23 @@
+# Render Blueprint for the DL inference microservice (dl_services/).
+#
+# Deploy:
+#   1. Push this repo to GitHub (already connected).
+#   2. Render dashboard → New → Blueprint → pick this repo → Apply.
+#   3. Render builds dl_services/Dockerfile and gives you a public https URL.
+#   4. Copy that URL and set DL_SERVICE_URL on the Vercel project (Production),
+#      e.g. DL_SERVICE_URL=https://dl-cp-models.onrender.com  — then redeploy Vercel.
+#
+# Note: the `free` plan spins down after ~15 min idle; the first /analyze after
+# idle may cold-start (~30–60s) and fall back to JS for that one call. Hit
+# /health to warm it, or upgrade to `starter` to stay always-on.
+services:
+  - type: web
+    name: dl-cp-models
+    runtime: docker
+    repo: https://github.com/Aryan-A-Sonawane/DL_CP
+    dockerfilePath: ./dl_services/Dockerfile
+    dockerContext: ./dl_services
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true

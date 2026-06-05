@@ -91,10 +91,25 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Failure Intelligence Mapper — DL Service", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=["*"],  # called server-to-server by the Next.js backend; CORS is moot
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+def root():
+    return {
+        "service": "Failure Intelligence Mapper — DL Service",
+        "models": list(_models.keys()),
+    }
+
+
+@app.get("/health")
+def health():
+    # Healthy only when all three models loaded — used by host health checks.
+    ready = {"resilience", "failure", "role"}.issubset(_models.keys())
+    return {"status": "ok" if ready else "degraded", "models": list(_models.keys()), "metrics": _metrics}
 
 
 # ─── Request / Response schemas ───────────────────────────────────────────────
